@@ -2,7 +2,7 @@
 
 > **Global Virtual Hackathon 2026 Submission**  
 > **Team:** ALDA  
-> **Live Demo:** [https://github.com/Alua09/e-ink-hackathon-2026.git](https://alua09.github.io/e-ink-hackathon-2026/)
+> **Live Demo:** https://alua09.github.io/e-ink-hackathon-2026/
 
 ---
 
