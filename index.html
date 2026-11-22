@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How E-Ink Works: Electrophoresis, Waveforms & Bistable Pixels</title>
+  <!-- Load Tailwind CSS for responsive layout -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Load Inter and JetBrains Mono for technical clarity -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #EAE6DF;
+      color: #1A1A1A;
+    }
+    .font-mono-tech {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Subtle e-paper micro-texture */
+    .eink-paper {
+      background-color: #F4F1EA;
+      background-image: radial-gradient(#D5D0C5 0.65px, transparent 0.65px);
+      background-size: 14px 14px;
+    }
+    /* Custom tactile range sliders */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      background: #D6D1C7;
+      border-radius: 999px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #1A1A1A;
+      cursor: pointer;
+      border: 2px solid #F4F1EA;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.22);
+      transition: transform 0.1s ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.12);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-3 sm:p-5">
+
+  <!-- TOP HEADER: 2-Minute Discovery Bar -->
+  <header class="max-w-7xl w-full mx-auto mb-4 bg-[#F4F1EA] border border-[#D4CFC4] rounded-2xl p-4 sm:p-5 shadow-sm">
+    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3.5">
+      <div>
+        <div class="flex flex-wrap items-center gap-2 mb-1.5">
+          <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#1A1A1A] text-[#F4F1EA] tracking-wide">
+            UNVEILING TECHNOLOGY
+          </span>
+          <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#EAE6DF] text-[#4A4741] border border-[#D4CFC4]">
+            64-CAPSULE ELECTROPHORESIS ENGINE
+          </span>
+          <button id="btnOpenPhysicsModal" class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 transition cursor-pointer">
+            ⓘ How the Physics Engine Works
+          </button>
+        </div>
+        <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-[#1A1A1A]">
+          How E-Ink Works: Electrophoresis, Waveforms &amp; Bistable Pixels
+        </h1>
+        <p class="text-xs sm:text-sm text-[#4A4741] mt-1 max-w-3xl">
+          Electronic paper moves real charged pigment particles inside oil-filled microcapsules. Once arranged, viscous oil locks the image in place with <strong>0.00 mW of power</strong>. Try the 3 quick experiments on the right →
+        </p>
+      </div>
+
+      <!-- 3 One-Click "2-Minute Discovery" Scenarios -->
+      <div class="flex flex-wrap items-center gap-2 shrink-0">
+        <button id="btnScenarioBattery" class="px-3 py-2 text-xs font-semibold rounded-xl bg-amber-600 text-white hover:bg-amber-700 transition shadow-sm cursor-pointer">
+          1. Cut Power (Bistability)
+        </button>
+        <button id="btnScenarioFreeze" class="px-3 py-2 text-xs font-semibold rounded-xl bg-sky-700 text-white hover:bg-sky-800 transition shadow-sm cursor-pointer">
+          2. Freeze to -15°C (Ghosting)
+        </button>
+        <button id="btnScenarioWaveform" class="px-3 py-2 text-xs font-semibold rounded-xl bg-[#1A1A1A] text-[#F4F1EA] hover:bg-[#333] transition shadow-sm cursor-pointer">
+          3. Run Anti-Ghosting Flash
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN TWO-PANEL WORKSPACE -->
+  <main class="max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-5 flex-grow">
+
+    <!-- LEFT PANEL: E-Reader Device + Paintbrush + Physical Controls (5 cols) -->
+    <section class="lg:col-span-5 bg-[#F4F1EA] border border-[#D4CFC4] rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col justify-between gap-4">
+      <div>
+        <div class="flex items-center justify-between mb-2.5">
+          <h2 class="text-xs sm:text-sm font-bold uppercase tracking-wider text-[#5A564E]">1. E-Reader Screen (8×8 Matrix)</h2>
+          <span id="batteryBadge" class="font-mono-tech text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-300">
+            🔋 BATTERY ON
+          </span>
+        </div>
+
+        <!-- Stylized E-Reader Hardware Frame -->
+        <div class="bg-[#262523] p-3.5 sm:p-4 rounded-2xl shadow-inner border-2 border-[#3A3835]">
+          <!-- Top Device Bezel Telemetry -->
+          <div class="flex items-center justify-between text-[11px] font-mono-tech text-[#A8A39A] mb-2 px-1">
+            <span id="powerDrawDisplay" class="text-emerald-400 font-semibold">IDLE: 0.00 mW</span>
+            <span id="energyCounterDisplay" class="text-[#D4CFC4]">ENERGY: 0.00 mWh</span>
+          </div>
+
+          <!-- E-Paper Screen Area with Row Selectors + 8x8 Pixel Grid -->
+          <div class="eink-paper p-2.5 sm:p-3 rounded-xl border border-[#B8B2A6] shadow-inner">
+            <div class="flex items-stretch gap-2 max-w-[320px] mx-auto">
+              <!-- Left Row Selector Buttons (R1 - R8) -->
+              <div id="rowSelectorCol" class="grid grid-rows-8 gap-1.5 w-8 shrink-0 select-none">
+                <!-- Generated by JS -->
+              </div>
+
+              <!-- 8x8 Interactive Pixel Matrix -->
+              <div id="pixelGrid" class="grid grid-cols-8 gap-1.5 aspect-square flex-grow select-none">
+                <!-- 64 interactive cells generated by JS -->
+              </div>
+            </div>
+
+            <div class="mt-2 flex items-center justify-between text-[11px] text-[#5A564E] px-1">
+              <span>Paint pixels or click <strong>R1–R8</strong> to inspect</span>
+              <span id="inspectedRowLabel" class="font-mono-tech font-semibold text-amber-800">Row 4 → Microscope</span>
+            </div>
+          </div>
+
+          <!-- Grayscale Brush Selector -->
+          <div class="mt-3 bg-[#1E1D1B] p-2 rounded-xl border border-[#3A3835]">
+            <div class="flex items-center justify-between gap-1.5">
+              <span class="text-[11px] font-semibold text-[#A8A39A] px-1">Brush Shade:</span>
+              <div class="grid grid-cols-4 gap-1 flex-grow" id="brushSelector">
+                <button data-shade="0" class="brush-btn py-1 px-1.5 rounded-lg text-[11px] font-semibold bg-[#181818] text-white ring-2 ring-amber-400 cursor-pointer">
+                  Black 0%
+                </button>
+                <button data-shade="1" class="brush-btn py-1 px-1.5 rounded-lg text-[11px] font-semibold bg-[#5A5854] text-white opacity-80 hover:opacity-100 cursor-pointer">
+                  Dark 33%
+                </button>
+                <button data-shade="2" class="brush-btn py-1 px-1.5 rounded-lg text-[11px] font-semibold bg-[#AEAAA2] text-[#1A1A1A] opacity-80 hover:opacity-100 cursor-pointer">
+                  Light 66%
+                </button>
+                <button data-shade="3" class="brush-btn py-1 px-1.5 rounded-lg text-[11px] font-semibold bg-[#F4F1EA] text-[#1A1A1A] opacity-80 hover:opacity-100 cursor-pointer">
+                  White 100%
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Page Presets -->
+          <div class="grid grid-cols-5 gap-1.5 mt-2">
+            <button id="btnPresetA" class="py-1.5 px-1 rounded-lg bg-[#3A3835] hover:bg-[#4E4B47] text-[#F4F1EA] text-[11px] font-semibold transition cursor-pointer">
+              Letter A
+            </button>
+            <button id="btnPresetHeart" class="py-1.5 px-1 rounded-lg bg-[#3A3835] hover:bg-[#4E4B47] text-[#F4F1EA] text-[11px] font-semibold transition cursor-pointer">
+              Heart ♥
+            </button>
+            <button id="btnPresetGradient" class="py-1.5 px-1 rounded-lg bg-[#3A3835] hover:bg-[#4E4B47] text-[#F4F1EA] text-[11px] font-semibold transition cursor-pointer">
+              Gradient
+            </button>
+            <button id="btnPresetChecker" class="py-1.5 px-1 rounded-lg bg-[#3A3835] hover:bg-[#4E4B47] text-[#F4F1EA] text-[11px] font-semibold transition cursor-pointer">
+              Checker
+            </button>
+            <button id="btnPresetClear" class="py-1.5 px-1 rounded-lg bg-[#3A3835] hover:bg-[#4E4B47] text-[#F4F1EA] text-[11px] font-semibold transition cursor-pointer">
+              Clear
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHYSICAL & ELECTRONIC CONTROLS -->
+      <div class="space-y-3 bg-[#EAE6DF]/75 p-3.5 rounded-xl border border-[#D4CFC4]">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-[#5A564E]">2. Hardware &amp; Physics Controls</h3>
+          <button id="btnInvertAll" class="px-2.5 py-1 rounded-lg bg-[#1A1A1A] text-[#F4F1EA] hover:bg-[#333] text-[11px] font-semibold transition cursor-pointer">
+            ⇄ Invert Page
+          </button>
+        </div>
+
+        <!-- Control A: Drive Waveform Toggle -->
+        <div class="bg-[#F4F1EA] p-2.5 rounded-xl border border-[#D4CFC4]">
+          <div class="flex items-center justify-between mb-1.5">
+            <div>
+              <div class="text-xs font-bold text-[#1A1A1A]">Drive Waveform Controller</div>
+              <div class="text-[11px] text-[#5A564E]">How voltage pulses clear ghosting &amp; set gray levels</div>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button id="btnWaveDirect" class="py-1.5 px-2 rounded-lg text-xs font-semibold bg-[#1A1A1A] text-[#F4F1EA] transition cursor-pointer">
+              Direct Pulse (Fast)
+            </button>
+            <button id="btnWaveAntiGhost" class="py-1.5 px-2 rounded-lg text-xs font-semibold bg-[#EAE6DF] text-[#3D3A34] hover:bg-[#DFDBD2] border border-[#C8C2B6] transition cursor-pointer">
+              3-Phase Anti-Ghosting
+            </button>
+          </div>
+        </div>
+
+        <!-- Control B: Power Switch (Bistability Test) -->
+        <div class="flex items-center justify-between bg-[#F4F1EA] p-2.5 rounded-xl border border-[#D4CFC4]">
+          <div>
+            <div class="text-xs font-bold text-[#1A1A1A]">Battery Power Supply</div>
+            <div class="text-[11px] text-[#5A564E]">Cut power to verify 0 mW bistable retention</div>
+          </div>
+          <button id="btnTogglePower" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition cursor-pointer">
+            Power: ON
+          </button>
+        </div>
+
+        <!-- Control C: Temperature & Base Pulse Duration Sliders -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div class="bg-[#F4F1EA] p-2.5 rounded-xl border border-[#D4CFC4]">
+            <div class="flex justify-between items-center mb-1">
+              <label for="tempSlider" class="text-[11px] font-bold text-[#1A1A1A]">Temp (Viscosity)</label>
+              <span id="tempValue" class="font-mono-tech text-[11px] font-bold px-1.5 py-0.5 rounded bg-[#EAE6DF]">+22°C</span>
+            </div>
+            <input id="tempSlider" type="range" min="-20" max="40" value="22" class="w-full" />
+            <div class="flex justify-between text-[10px] text-[#5A564E] mt-1">
+              <span>-20°C (Thick)</span>
+              <span>+40°C (Thin)</span>
+            </div>
+          </div>
+
+          <div class="bg-[#F4F1EA] p-2.5 rounded-xl border border-[#D4CFC4]">
+            <div class="flex justify-between items-center mb-1">
+              <label for="pulseSlider" class="text-[11px] font-bold text-[#1A1A1A]">Base Pulse Time</label>
+              <span id="pulseValue" class="font-mono-tech text-[11px] font-bold px-1.5 py-0.5 rounded bg-[#EAE6DF]">600 ms</span>
+            </div>
+            <input id="pulseSlider" type="range" min="80" max="800" step="20" value="600" class="w-full" />
+            <div class="flex justify-between text-[10px] text-[#5A564E] mt-1">
+              <span>80 ms (Short)</span>
+              <span>800 ms (Full)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: Microscopic Cross-Section + Live Oscilloscope (7 cols) -->
+    <section class="lg:col-span-7 bg-[#F4F1EA] border border-[#D4CFC4] rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col justify-between gap-3.5">
+      <div>
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <div>
+            <h2 id="microscopeHeading" class="text-xs sm:text-sm font-bold uppercase tracking-wider text-[#5A564E]">
+              3. Microscopic Cross-Section — Row 4 Microcapsules
+            </h2>
+            <p class="text-xs text-[#5A564E]">
+              Click any capsule below to probe its voltage &amp; reflectance on the oscilloscope
+            </p>
+          </div>
+          <!-- Pigment Legend -->
+          <div class="flex items-center gap-3 text-xs bg-[#EAE6DF] px-3 py-1.5 rounded-xl border border-[#D4CFC4]">
+            <span class="flex items-center gap-1.5 font-medium">
+              <span class="w-3 h-3 rounded-full bg-white border border-gray-500 inline-block"></span> TiO₂ White (+)
+            </span>
+            <span class="flex items-center gap-1.5 font-medium">
+              <span class="w-3 h-3 rounded-full bg-[#181818] inline-block"></span> Carbon Black (−)
+            </span>
+          </div>
+        </div>
+
+        <!-- Microcapsule Cross-Section Canvas -->
+        <div id="canvasContainer" class="relative w-full h-[270px] sm:h-[300px] bg-[#E3DFD7] rounded-2xl border border-[#C5BFB3] overflow-hidden shadow-inner cursor-pointer">
+          <canvas id="microscopeCanvas" class="w-full h-full block"></canvas>
+        </div>
+      </div>
+
+      <!-- LIVE VOLTAGE & REFLECTANCE OSCILLOSCOPE -->
+      <div class="bg-[#1C1B19] border border-[#3A3835] rounded-2xl p-3 shadow-inner">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5 px-1">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="scopeTitle" class="font-mono-tech text-xs font-bold text-[#F4F1EA]">
+              OSCILLOSCOPE — PROBE: CAPSULE R4.C4
+            </span>
+          </div>
+          <div class="flex items-center gap-3 font-mono-tech text-[11px]">
+            <span class="text-amber-400">━ Voltage V(t) [±15V]</span>
+            <span class="text-emerald-400">━ Surface Reflectance [%]</span>
+          </div>
+        </div>
+        <div id="scopeContainer" class="w-full h-[115px] sm:h-[125px] bg-[#141312] rounded-xl border border-[#2E2C29] overflow-hidden">
+          <canvas id="scopeCanvas" class="w-full h-full block"></canvas>
+        </div>
+      </div>
+
+      <!-- LIVE TELEMETRY STRIP -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div class="bg-[#EAE6DF]/80 border border-[#D4CFC4] rounded-xl p-2.5">
+          <div class="text-[10px] uppercase font-bold text-[#5A564E]">Probe Voltage</div>
+          <div id="telemetryVoltage" class="font-mono-tech text-xs sm:text-sm font-bold text-[#1A1A1A] mt-0.5">0.0 V (Idle)</div>
+        </div>
+        <div class="bg-[#EAE6DF]/80 border border-[#D4CFC4] rounded-xl p-2.5">
+          <div class="text-[10px] uppercase font-bold text-[#5A564E]">Oil Viscosity η(T)</div>
+          <div id="telemetryViscosity" class="font-mono-tech text-xs sm:text-sm font-bold text-[#1A1A1A] mt-0.5">12.0 mPa·s</div>
+        </div>
+        <div class="bg-[#EAE6DF]/80 border border-[#D4CFC4] rounded-xl p-2.5">
+          <div class="text-[10px] uppercase font-bold text-[#5A564E]">Drift Speed</div>
+          <div id="telemetryVelocity" class="font-mono-tech text-xs sm:text-sm font-bold text-[#1A1A1A] mt-0.5">0.00 mm/s</div>
+        </div>
+        <div class="bg-[#EAE6DF]/80 border border-[#D4CFC4] rounded-xl p-2.5">
+          <div class="text-[10px] uppercase font-bold text-[#5A564E]">Probe Reflectance</div>
+          <div id="telemetryAlbedo" class="font-mono-tech text-xs sm:text-sm font-bold text-[#1A1A1A] mt-0.5">92% White</div>
+        </div>
+      </div>
+
+      <!-- Dynamic Insight Banner -->
+      <div class="bg-[#EAE6DF]/65 border border-[#D4CFC4] rounded-xl px-3.5 py-2 text-xs text-[#3D3A34] flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+        <span id="statusBanner" class="font-semibold text-emerald-800">
+          ✓ Bistable Hold: Viscous drag keeps pigments suspended at 0.00 mW.
+        </span>
+        <span class="font-mono-tech text-[11px] text-[#5A564E] shrink-0">
+          v = (q·E) / (6π·η(T)·r)
+        </span>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- COLLAPSIBLE PHYSICS & ENGINEERING MODAL -->
+  <div id="physicsModal" class="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-[#F4F1EA] border border-[#D4CFC4] rounded-2xl max-w-2xl w-full max-h-[88vh] overflow-y-auto p-5 sm:p-6 shadow-xl">
+      <div class="flex items-center justify-between border-b border-[#D4CFC4] pb-3 mb-4">
+        <div>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-amber-800">Under The Hood</span>
+          <h3 class="text-lg font-bold text-[#1A1A1A]">How Our E-Ink Physics Engine Works</h3>
+        </div>
+        <button id="btnClosePhysicsModal" class="px-3 py-1.5 rounded-xl bg-[#EAE6DF] hover:bg-[#DCD7CC] text-xs font-bold text-[#1A1A1A] cursor-pointer">
+          ✕ Close
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs sm:text-sm text-[#33312C] leading-relaxed">
+        <div class="bg-[#EAE6DF]/70 p-3.5 rounded-xl border border-[#D4CFC4]">
+          <h4 class="font-bold text-[#1A1A1A] mb-1">1. Electrophoretic Drift Velocity (Stokes' Law)</h4>
+          <p class="mb-2">
+            Every microcapsule contains positively charged white Titanium Dioxide (TiO₂) spheres and negatively charged black Carbon Black spheres suspended in clear hydrocarbon oil. When an electric field <strong>E</strong> is applied across the top and bottom electrodes, particles reach terminal drift velocity almost instantaneously:
+          </p>
+          <div class="font-mono-tech text-xs bg-[#F4F1EA] p-2.5 rounded-lg border border-[#D4CFC4] text-center font-semibold">
+            v = (q · E) / (6 · π · η(T) · r)
+          </div>
+        </div>
+
+        <div class="bg-[#EAE6DF]/70 p-3.5 rounded-xl border border-[#D4CFC4]">
+          <h4 class="font-bold text-[#1A1A1A] mb-1">2. Temperature &amp; Viscosity (Arrhenius Scaling)</h4>
+          <p>
+            Lowering ambient temperature exponentially increases carrier oil viscosity <strong>η(T) = η₀ · exp(k · (22 − T))</strong>. At <strong>−15°C</strong>, oil becomes ~6× thicker, reducing drift speed so particles fail to reach the top electrode during a single pulse—producing realistic <strong>ghosting</strong>.
+          </p>
+        </div>
+
+        <div class="bg-[#EAE6DF]/70 p-3.5 rounded-xl border border-[#D4CFC4]">
+          <h4 class="font-bold text-[#1A1A1A] mb-1">3. Multi-Phase Anti-Ghosting Waveform</h4>
+          <p>
+            Real E-Ink controllers solve ghosting and achieve accurate grayscale using a 3-phase voltage sequence:
+            <strong>Phase 1</strong> drives all particles to full Black (+15V) to erase prior positions;
+            <strong>Phase 2</strong> flushes them to full White (−15V) to establish a clean baseline;
+            <strong>Phase 3</strong> applies a calibrated pulse duration to position the exact ratio of white and black spheres near the viewing surface.
+          </p>
+        </div>
+
+        <div class="bg-amber-50/80 p-3.5 rounded-xl border border-amber-200">
+          <h4 class="font-bold text-amber-950 mb-1">4. Honest Engineering Simplifications</h4>
+          <ul class="list-disc pl-4 space-y-1 text-amber-950/90">
+            <li>Each of the 64 pixels runs a live 2D cross-section simulation (28 pigment spheres per capsule, 1,792 total simulated particles) rather than full 3D fluid dynamics.</li>
+            <li>Optical reflectance is computed directly from the vertical positions of white vs. black particles in the upper optical zone of each capsule.</li>
+            <li>Microcapsules are rendered in an ordered row cross-section; in real electrophoretic film, capsules are packed in a random monolayer.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * ============================================================================
+     * E-INK ELECTROPHORESIS, WAVEFORM CONTROLLER & BISTABILITY ENGINE
+     * ============================================================================
+     * Every pixel in the 8x8 matrix (64 total microcapsules) simulates real charged
+     * pigment particles moving through viscous oil under an electric field.
+     * No external physics engines or pre-recorded animations are used.
+     */
+
+    const GRID_SIZE = 8;
+    const TOTAL_PIXELS = GRID_SIZE * GRID_SIZE;
+
+    // 4-level grayscale shades (0 = Black 0%, 1 = Dark Gray 33%, 2 = Light Gray 66%, 3 = White 100%)
+    const SHADE_NAMES = ['Black (0%)', 'Dark Gray (33%)', 'Light Gray (66%)', 'White (100%)'];
+
+    // --- 1. GLOBAL SIMULATION STATE ---
+    const state = {
+      powerConnected: true,
+      temperatureC: 22,
+      basePulseMs: 600,
+      waveformMode: 'direct',     // 'direct' | 'antighost'
+      inspectedRow: 3,            // 0..7 (Default Row 4)
+      selectedCapsuleCol: 3,      // 0..7 (Default Capsule 4 in inspected row)
+      selectedBrushShade: 0,      // 0 (Black) to 3 (White)
+      targetShades: new Array(TOTAL_PIXELS).fill(3),
+      pixelReflectance: new Array(TOTAL_PIXELS).fill(0.92),
+      totalEnergyMWh: 0,
+      isDrawing: false,
+      scopeHistory: []            // Stores { v: normalizedVoltage [-1..1], r: reflectance [0..1] }
+    };
+
+    // Pre-populate oscilloscope history with flat baseline
+    for (let i = 0; i < 180; i++) {
+      state.scopeHistory.push({ v: 0, r: 0.92 });
+    }
+
+    // --- 2. PAGE PRESET PATTERNS (0=Black, 1=DarkGray, 2=LightGray, 3=White) ---
+    const PRESETS = {
+      letterA: [
+        3, 3, 0, 0, 0, 0, 3, 3,
+        3, 0, 0, 3, 3, 0, 0, 3,
+        3, 0, 0, 3, 3, 0, 0, 3,
+        3, 0, 0, 0, 0, 0, 0, 3,
+        3, 0, 0, 3, 3, 0, 0, 3,
+        3, 0, 0, 3, 3, 0, 0, 3,
+        3, 0, 0, 3, 3, 0, 0, 3,
+        3, 3, 3, 3, 3, 3, 3, 3
+      ],
+      heart: [
+        3, 0, 0, 3, 3, 0, 0, 3,
+        0, 1, 1, 0, 0, 1, 1, 0,
+        0, 1, 2, 1, 1, 2, 1, 0,
+        0, 1, 1, 1, 1, 1, 1, 0,
+        3, 0, 1, 1, 1, 1, 0, 3,
+        3, 3, 0, 1, 1, 0, 3, 3,
+        3, 3, 3, 0, 0, 3, 3, 3,
+        3, 3, 3, 3, 3, 3, 3, 3
+      ],
+      gradient: [
+        0, 0, 1, 1, 2, 2, 3, 3,
+        0, 0, 1, 1, 2, 2, 3, 3,
+        0, 0, 1, 1, 2, 2, 3, 3,
+        0, 0, 1, 1, 2, 2, 3, 3,
+        0, 0, 1, 1, 2, 2, 3, 3,
+        0, 0, 1, 1, 2, 2, 3, 3,
+        0, 0, 1, 1, 2, 2, 3, 3,
+        0, 0, 1, 1, 2, 2, 3, 3
+      ],
+      checker: Array.from({ length: TOTAL_PIXELS }, (_, i) => {
+        const r = Math.floor(i / GRID_SIZE);
+        const c = i % GRID_SIZE;
+        return (r + c) % 2 === 0 ? 0 : 3;
+      }),
+      clear: new Array(TOTAL_PIXELS).fill(3)
+    };
+
+    // --- 3. MICROCAPSULE & CHARGED PIGMENT PARTICLE CLASSES ---
+    class PigmentParticle {
+      constructor(x, y, radius, charge) {
+        this.x = x;           // Local X [-1, 1]
+        this.y = y;           // Local Y [-1, 1] (-1 = top viewing electrode, +1 = bottom electrode)
+        this.radius = radius;
+        this.charge = charge; // +1 = White (TiO2), -1 = Black (Carbon Black)
+      }
+    }
+
+    class Microcapsule {
+      constructor(pixelIndex) {
+        this.pixelIndex = pixelIndex;
+        this.particles = [];
+        // Waveform queue: array of { polarity: +1|-1|0, remainingMs: number, phaseName: string }
+        this.waveformQueue = [];
+        this.currentVoltagePolarity = 0; // +1 (+15V), -1 (-15V), or 0 (0V)
+        this.currentPhaseLabel = 'IDLE';
+        this.initParticles();
+      }
+
+      initParticles() {
+        this.particles = [];
+        const perType = 14; // 14 White + 14 Black = 28 spheres per capsule (1,792 total across 64 pixels)
+        for (let i = 0; i < perType * 2; i++) {
+          const isWhite = i < perType;
+          const charge = isWhite ? 1 : -1;
+          const radius = 0.105;
+          const angle = Math.random() * Math.PI * 2;
+          const dist = Math.sqrt(Math.random()) * 0.76;
+          const yBias = isWhite ? -0.28 : 0.28;
+          const x = Math.cos(angle) * dist * 0.85;
+          const y = Math.max(-0.8, Math.min(0.8, Math.sin(angle) * dist * 0.62 + yBias));
+          this.particles.push(new PigmentParticle(x, y, radius, charge));
+        }
+      }
+
+      /**
+       * Enqueues voltage pulses to drive this capsule to targetShade (0..3).
+       * - Direct Mode: Single calibrated pulse toward target shade.
+       * - 3-Phase Anti-Ghosting Mode:
+       *    1. Shake to Black (+15V)
+       *    2. Flush to White (-15V)
+       *    3. Drive to exact target shade (+15V for dark/mid shades, or hold white)
+       */
+      programWaveform(targetShade, mode, basePulseMs) {
+        this.waveformQueue = [];
+
+        if (mode === 'direct') {
+          if (targetShade === 3) {
+            // Drive full white (-15V top electrode attracts +White)
+            this.waveformQueue.push({ polarity: -1, remainingMs: basePulseMs, phaseName: 'DIRECT → WHITE' });
+          } else if (targetShade === 0) {
+            // Drive full black (+15V top electrode attracts -Black)
+            this.waveformQueue.push({ polarity: 1, remainingMs: basePulseMs, phaseName: 'DIRECT → BLACK' });
+          } else {
+            // Intermediate gray: short pulse toward black or white depending on current reflectance
+            const currentRef = this.computeReflectance();
+            const desiredRef = targetShade === 2 ? 0.66 : 0.33;
+            const polarity = desiredRef < currentRef ? 1 : -1;
+            const duration = Math.round(basePulseMs * 0.42);
+            this.waveformQueue.push({ polarity, remainingMs: duration, phaseName: 'DIRECT → GRAY' });
+          }
+        } else {
+          // 3-PHASE ANTI-GHOSTING WAVEFORM
+          const clearPulse = Math.max(360, Math.round(basePulseMs * 0.85));
+          // Phase 1: Drive to Black (+15V)
+          this.waveformQueue.push({ polarity: 1, remainingMs: clearPulse, phaseName: 'PHASE 1: BLACK CLEAR' });
+          // Phase 2: Flush to White (-15V)
+          this.waveformQueue.push({ polarity: -1, remainingMs: clearPulse, phaseName: 'PHASE 2: WHITE FLUSH' });
+          // Phase 3: Drive down from White to exact target gray level
+          if (targetShade === 2) {
+            // Light Gray (66% white): brief +15V pulse
+            this.waveformQueue.push({ polarity: 1, remainingMs: Math.round(basePulseMs * 0.32), phaseName: 'PHASE 3: 66% GRAY' });
+          } else if (targetShade === 1) {
+            // Dark Gray (33% white): medium +15V pulse
+            this.waveformQueue.push({ polarity: 1, remainingMs: Math.round(basePulseMs * 0.58), phaseName: 'PHASE 3: 33% GRAY' });
+          } else if (targetShade === 0) {
+            // Full Black (0% white): full +15V pulse
+            this.waveformQueue.push({ polarity: 1, remainingMs: basePulseMs, phaseName: 'PHASE 3: FULL BLACK' });
+          }
+        }
+      }
+
+      /**
+       * Computes optical reflectance (0.08 = Black to 0.94 = White) directly from
+       * the positions of white vs. black pigment spheres near the top viewing window.
+       */
+      computeReflectance() {
+        let topWhite = 0;
+        let topBlack = 0;
+        for (const p of this.particles) {
+          if (p.y < 0.08) {
+            const weight = Math.max(0, 0.08 - p.y);
+            if (p.charge > 0) topWhite += weight;
+            else topBlack += weight;
+          }
+        }
+        const sum = topWhite + topBlack;
+        if (sum < 0.001) return 0.5;
+        return 0.08 + (topWhite / sum) * 0.86;
+      }
+    }
+
+    // Create all 64 microcapsules (one for every pixel on the 8x8 screen)
+    const capsules = Array.from({ length: TOTAL_PIXELS }, (_, idx) => new Microcapsule(idx));
+
+    // --- 4. PHYSICS ENGINE STEP ---
+
+    /**
+     * Arrhenius-inspired exponential viscosity curve η(T) in mPa·s.
+     * At +22°C -> 12.0 mPa·s; at -20°C -> ~90 mPa·s (7.5x thicker oil).
+     */
+    function calculateOilViscosity(tempC) {
+      return 12.0 * Math.exp(0.048 * (22 - tempC));
+    }
+
+    function stepSimulation(dt) {
+      const viscosity = calculateOilViscosity(state.temperatureC);
+      // Electrophoretic mobility μ = q / (6π · η(T) · r)
+      const mobility = 25.5 / viscosity;
+      const thermalJitter = 0.014 * Math.sqrt((state.temperatureC + 273.15) / 295.15);
+
+      let activeCapsulesCount = 0;
+
+      for (let i = 0; i < TOTAL_PIXELS; i++) {
+        const cap = capsules[i];
+
+        // Determine active voltage polarity from waveform queue
+        if (!state.powerConnected) {
+          cap.waveformQueue = [];
+          cap.currentVoltagePolarity = 0;
+          cap.currentPhaseLabel = 'POWER CUT (0V)';
+        } else if (cap.waveformQueue.length > 0) {
+          const currentSeg = cap.waveformQueue[0];
+          cap.currentVoltagePolarity = currentSeg.polarity;
+          cap.currentPhaseLabel = currentSeg.phaseName;
+          currentSeg.remainingMs -= dt * 1000;
+          if (currentSeg.remainingMs <= 0) {
+            cap.waveformQueue.shift();
+          }
+          if (cap.currentVoltagePolarity !== 0) {
+            activeCapsulesCount++;
+          }
+        } else {
+          cap.currentVoltagePolarity = 0;
+          cap.currentPhaseLabel = 'BISTABLE HOLD';
+        }
+
+        // Only run particle integration if voltage is applied or tiny thermal settling occurs
+        if (cap.currentVoltagePolarity !== 0) {
+          integrateCapsuleParticles(cap, cap.currentVoltagePolarity, mobility, thermalJitter, dt);
+        }
+
+        state.pixelReflectance[i] = cap.computeReflectance();
+      }
+
+      // Accumulate energy usage in milliwatt-hours (mWh) only when pulses are actively switching
+      const instantPowerMw = activeCapsulesCount * 0.45;
+      state.totalEnergyMWh += (instantPowerMw * dt) / 3600;
+
+      // Record oscilloscope probe sample (inspected row, selected column)
+      const probeIdx = state.inspectedRow * GRID_SIZE + state.selectedCapsuleCol;
+      const probeCap = capsules[probeIdx];
+      state.scopeHistory.push({
+        v: probeCap.currentVoltagePolarity,
+        r: state.pixelReflectance[probeIdx]
+      });
+      if (state.scopeHistory.length > 220) {
+        state.scopeHistory.shift();
+      }
+
+      updateMacroGridDOM();
+      updateTelemetryUI(activeCapsulesCount, instantPowerMw, viscosity, mobility, probeCap);
+    }
+
+    function integrateCapsuleParticles(capsule, fieldE, mobility, thermalJitter, dt) {
+      const particles = capsule.particles;
+
+      // 1. Electrophoretic drift: v = q * E * mobility
+      for (const p of particles) {
+        // Top electrode polarity = fieldE (+1 = +15V Red, -1 = -15V Blue)
+        // White (+1) moves DOWN (+y) when Top is +15V; Black (-1) moves UP (-y) when Top is +15V.
+        const vy = p.charge * fieldE * mobility * 1.18;
+        const jx = (Math.random() - 0.5) * thermalJitter;
+        const jy = (Math.random() - 0.5) * thermalJitter;
+
+        p.x += jx * dt;
+        p.y += (vy + jy) * dt;
+      }
+
+      // 2. Elastic particle-particle collisions + capsule boundary containment
+      for (let pass = 0; pass < 3; pass++) {
+        for (let i = 0; i < particles.length; i++) {
+          const p1 = particles[i];
+          for (let j = i + 1; j < particles.length; j++) {
+            const p2 = particles[j];
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const distSq = dx * dx + dy * dy;
+            const minDist = p1.radius + p2.radius;
+
+            if (distSq < minDist * minDist && distSq > 0.000001) {
+              const dist = Math.sqrt(distSq);
+              const overlap = (minDist - dist) * 0.5;
+              const nx = dx / dist;
+              const ny = dy / dist;
+              const slip = Math.abs(nx) < 0.06 ? (Math.random() - 0.5) * 0.05 : 0;
+
+              p1.x -= (nx + slip) * overlap;
+              p1.y -= ny * overlap;
+              p2.x += (nx + slip) * overlap;
+              p2.y += ny * overlap;
+            }
+          }
+
+          // Elliptical microcapsule boundary
+          const maxR = 0.92 - p1.radius;
+          const ex = p1.x / 1.04;
+          const ey = p1.y / 0.92;
+          const rNorm = Math.sqrt(ex * ex + ey * ey);
+          if (rNorm > maxR) {
+            const scale = maxR / rNorm;
+            p1.x = ex * scale * 1.04;
+            p1.y = ey * scale * 0.92;
+          }
+        }
+      }
+    }
+
+    // --- 5. MICROSCOPIC CROSS-SECTION CANVAS RENDERER ---
+    const microCanvas = document.getElementById('microscopeCanvas');
+    const microCtx = microCanvas.getContext('2d');
+    let capsuleHitboxes = []; // Stores { col, x, y, w, h } for click-to-probe
+
+    function resizeCanvases() {
+      const dpr = window.devicePixelRatio || 1;
+
+      const microContainer = document.getElementById('canvasContainer');
+      microCanvas.width = microContainer.clientWidth * dpr;
+      microCanvas.height = microContainer.clientHeight * dpr;
+      microCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const scopeContainer = document.getElementById('scopeContainer');
+      scopeCanvas.width = scopeContainer.clientWidth * dpr;
+      scopeCanvas.height = scopeContainer.clientHeight * dpr;
+      scopeCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener('resize', resizeCanvases);
+
+    function renderMicroscope() {
+      const container = document.getElementById('canvasContainer');
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      const ctx = microCtx;
+
+      ctx.clearRect(0, 0, w, h);
+      capsuleHitboxes = [];
+
+      const topBarH = 44;
+      const electrodeH = 20;
+      const bottomBarH = 26;
+      const capsuleTop = topBarH + electrodeH + 8;
+      const capsuleBottom = h - bottomBarH - electrodeH - 8;
+      const capsuleAreaH = capsuleBottom - capsuleTop;
+
+      const padX = 18;
+      const slotW = (w - padX * 2) / GRID_SIZE;
+      const rx = Math.min(slotW * 0.43, capsuleAreaH * 0.44);
+      const ry = Math.min(capsuleAreaH * 0.46, slotW * 0.56);
+
+      // Top Ambient Light Banner
+      ctx.fillStyle = '#EAE6DF';
+      ctx.fillRect(0, 0, w, topBarH);
+      ctx.strokeStyle = '#C8C2B6';
+      ctx.beginPath();
+      ctx.moveTo(0, topBarH);
+      ctx.lineTo(w, topBarH);
+      ctx.stroke();
+
+      ctx.fillStyle = '#3D3A34';
+      ctx.font = '700 11px Inter, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('☀ AMBIENT ROOM LIGHT REFLECTION (NO BACKLIGHT)', 14, 17);
+      ctx.fillStyle = '#6A655C';
+      ctx.font = '400 11px Inter, sans-serif';
+      ctx.fillText('White spheres at the top reflect light; Black spheres absorb it. Mixtures create grayscale.', 14, 34);
+
+      for (let col = 0; col < GRID_SIZE; col++) {
+        const pixelIdx = state.inspectedRow * GRID_SIZE + col;
+        const cap = capsules[pixelIdx];
+        const cx = padX + slotW * (col + 0.5);
+        const cy = (capsuleTop + capsuleBottom) * 0.5;
+        const reflectance = state.pixelReflectance[pixelIdx];
+        const polarity = cap.currentVoltagePolarity;
+        const isProbed = col === state.selectedCapsuleCol;
+
+        // Save hitbox for click-to-probe selection
+        capsuleHitboxes.push({
+          col,
+          x: cx - slotW * 0.48,
+          y: topBarH + 2,
+          w: slotW * 0.96,
+          h: h - topBarH - 4
+        });
+
+        // Highlight probed capsule column
+        if (isProbed) {
+          ctx.save();
+          ctx.fillStyle = 'rgba(245, 158, 11, 0.13)';
+          ctx.strokeStyle = 'rgba(217, 119, 6, 0.75)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(cx - slotW * 0.47, topBarH + 4, slotW * 0.94, h - topBarH - 8, 10);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // 1. Light rays
+        drawLightRay(ctx, cx, topBarH - 4, cy - ry - electrodeH - 3, reflectance);
+
+        // 2. Top & Bottom Electrodes
+        const plateW = rx * 1.85;
+        drawElectrode(ctx, cx - plateW / 2, cy - ry - electrodeH - 2, plateW, electrodeH, polarity);
+        drawElectrode(ctx, cx - plateW / 2, cy + ry + 2, plateW, electrodeH, -polarity);
+
+        // 3. Electric Field Lines when active
+        if (polarity !== 0) {
+          ctx.save();
+          ctx.strokeStyle = polarity === 1 ? 'rgba(220, 38, 38, 0.32)' : 'rgba(37, 99, 235, 0.32)';
+          ctx.lineWidth = 1.4;
+          ctx.setLineDash([3, 3]);
+          for (const dx of [-rx * 0.45, 0, rx * 0.45]) {
+            ctx.beginPath();
+            ctx.moveTo(cx + dx, cy - ry * 0.75);
+            ctx.lineTo(cx + dx, cy + ry * 0.75);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        // 4. Microcapsule Shell & Oil Fill
+        ctx.save();
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        const coldTint = Math.max(0, (12 - state.temperatureC) / 32);
+        ctx.fillStyle = coldTint > 0
+          ? `rgba(${225 - coldTint * 28}, ${233 - coldTint * 10}, 240, 0.9)`
+          : 'rgba(236, 233, 225, 0.9)';
+        ctx.fill();
+        ctx.lineWidth = isProbed ? 2.4 : 1.8;
+        ctx.strokeStyle = isProbed ? '#D97706' : '#9E988C';
+        ctx.stroke();
+        ctx.clip();
+
+        // 5. Charged Pigment Spheres
+        for (const p of cap.particles) {
+          const px = cx + p.x * rx;
+          const py = cy + p.y * ry;
+          const pr = Math.max(3, p.radius * Math.min(rx, ry));
+
+          ctx.beginPath();
+          ctx.arc(px, py, pr, 0, Math.PI * 2);
+          if (p.charge > 0) {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fill();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = '#7A756C';
+            ctx.stroke();
+          } else {
+            ctx.fillStyle = '#181818';
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+
+        // 6. Bottom Capsule Label
+        ctx.fillStyle = isProbed ? '#B45309' : '#4A4741';
+        ctx.font = isProbed ? '700 11px "JetBrains Mono", monospace' : '600 10px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`R${state.inspectedRow + 1}.C${col + 1}`, cx, h - 8);
+      }
+    }
+
+    function drawElectrode(ctx, x, y, w, h, polarity) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, 4);
+      if (polarity === 1) {
+        ctx.fillStyle = '#DC2626';
+        ctx.strokeStyle = '#991B1B';
+      } else if (polarity === -1) {
+        ctx.fillStyle = '#2563EB';
+        ctx.strokeStyle = '#1E40AF';
+      } else {
+        ctx.fillStyle = '#D5D0C5';
+        ctx.strokeStyle = '#A8A296';
+      }
+      ctx.lineWidth = 1.4;
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = polarity === 0 ? '#5A564E' : '#FFFFFF';
+      ctx.font = '700 10px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(polarity === 1 ? '+15V' : (polarity === -1 ? '-15V' : '0V'), x + w / 2, y + h / 2 + 0.5);
+      ctx.restore();
+    }
+
+    function drawLightRay(ctx, cx, topY, plateTopY, reflectance) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(217, 119, 6, 0.55)';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(cx - 8, topY);
+      ctx.lineTo(cx - 2, plateTopY);
+      ctx.stroke();
+
+      const alpha = Math.max(0.08, (reflectance - 0.08) / 0.86);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.95})`;
+      ctx.lineWidth = 1.4 + alpha * 1.8;
+      ctx.beginPath();
+      ctx.moveTo(cx + 2, plateTopY);
+      ctx.lineTo(cx + 10, topY);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Allow clicking directly on any capsule in the microscope to probe it on the oscilloscope
+    microCanvas.addEventListener('click', (e) => {
+      const rect = microCanvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      for (const box of capsuleHitboxes) {
+        if (clickX >= box.x && clickX <= box.x + box.w && clickY >= box.y && clickY <= box.y + box.h) {
+          state.selectedCapsuleCol = box.col;
+          document.getElementById('scopeTitle').textContent =
+            `OSCILLOSCOPE — PROBE: CAPSULE R${state.inspectedRow + 1}.C${state.selectedCapsuleCol + 1}`;
+          break;
+        }
+      }
+    });
+
+    // --- 6. LIVE OSCILLOSCOPE RENDERER ---
+    const scopeCanvas = document.getElementById('scopeCanvas');
+    const scopeCtx = scopeCanvas.getContext('2d');
+
+    function renderOscilloscope() {
+      const container = document.getElementById('scopeContainer');
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      const ctx = scopeCtx;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Subtle oscilloscope grid lines
+      ctx.strokeStyle = '#262421';
+      ctx.lineWidth = 1;
+      for (let gx = 0; gx < w; gx += 36) {
+        ctx.beginPath();
+        ctx.moveTo(gx, 0);
+        ctx.lineTo(gx, h);
+        ctx.stroke();
+      }
+      const midY = h * 0.5;
+      ctx.strokeStyle = '#33302C';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(0, midY);
+      ctx.lineTo(w, midY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Y-axis reference labels
+      ctx.fillStyle = '#78736A';
+      ctx.font = '600 9px "JetBrains Mono", monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('+15V / 100%', 6, 12);
+      ctx.fillText('0V / 50%', 6, midY - 3);
+      ctx.fillText('-15V / 0%', 6, h - 5);
+
+      const history = state.scopeHistory;
+      if (history.length < 2) return;
+      const stepX = w / (history.length - 1);
+
+      // Plot 1: Applied Voltage Pulse V(t) in Amber
+      ctx.save();
+      ctx.strokeStyle = '#FBBF24';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < history.length; i++) {
+        const x = i * stepX;
+        // Map v in [-1, 1] to Y
+        const y = midY - history[i].v * (h * 0.38);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.restore();
+
+      // Plot 2: Surface Reflectance (%) in Emerald Green
+      ctx.save();
+      ctx.strokeStyle = '#34D399';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      for (let i = 0; i < history.length; i++) {
+        const x = i * stepX;
+        // Map reflectance [0.08..0.94] to [h-10 .. 10]
+        const normR = Math.max(0, Math.min(1, (history[i].r - 0.08) / 0.86));
+        const y = (h - 10) - normR * (h - 20);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // --- 7. MACRO E-READER GRID & ROW SELECTOR DOM ---
+    const pixelGridEl = document.getElementById('pixelGrid');
+    const rowSelectorColEl = document.getElementById('rowSelectorCol');
+    const pixelEls = [];
+    const rowBtnEls = [];
+
+    function buildMacroGridDOM() {
+      pixelGridEl.innerHTML = '';
+      rowSelectorColEl.innerHTML = '';
+
+      // Build Row Selector Buttons R1..R8
+      for (let r = 0; r < GRID_SIZE; r++) {
+        const btn = document.createElement('button');
+        btn.textContent = `R${r + 1}`;
+        btn.title = `Inspect Row ${r + 1} in Microscope`;
+        btn.className = 'rounded-md font-mono-tech text-[10px] font-bold flex items-center justify-center transition cursor-pointer';
+        btn.addEventListener('click', () => setInspectedRow(r));
+        rowSelectorColEl.appendChild(btn);
+        rowBtnEls.push(btn);
+      }
+
+      // Build 64 Pixel Cells
+      for (let i = 0; i < TOTAL_PIXELS; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'rounded-md border transition-colors duration-75 cursor-pointer';
+
+        const paintCell = () => {
+          state.targetShades[i] = state.selectedBrushShade;
+          if (state.powerConnected) {
+            capsules[i].programWaveform(state.selectedBrushShade, state.waveformMode, state.basePulseMs);
+          }
+        };
+
+        cell.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          state.isDrawing = true;
+          paintCell();
+        });
+        cell.addEventListener('mouseenter', () => {
+          if (state.isDrawing) paintCell();
+        });
+        cell.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          paintCell();
+        }, { passive: false });
+
+        pixelGridEl.appendChild(cell);
+        pixelEls.push(cell);
+      }
+
+      window.addEventListener('mouseup', () => { state.isDrawing = false; });
+      setInspectedRow(state.inspectedRow);
+    }
+
+    function setInspectedRow(rowIdx) {
+      state.inspectedRow = rowIdx;
+      document.getElementById('inspectedRowLabel').textContent = `Row ${rowIdx + 1} → Microscope`;
+      document.getElementById('microscopeHeading').textContent =
+        `3. Microscopic Cross-Section — Row ${rowIdx + 1} Microcapsules`;
+      document.getElementById('scopeTitle').textContent =
+        `OSCILLOSCOPE — PROBE: CAPSULE R${rowIdx + 1}.C${state.selectedCapsuleCol + 1}`;
+
+      // Update row button highlights
+      rowBtnEls.forEach((btn, idx) => {
+        if (idx === rowIdx) {
+          btn.className = 'rounded-md font-mono-tech text-[10px] font-bold flex items-center justify-center bg-amber-600 text-white shadow-xs cursor-pointer';
+        } else {
+          btn.className = 'rounded-md font-mono-tech text-[10px] font-bold flex items-center justify-center bg-[#E3DFD7] text-[#5A564E] hover:bg-[#D5D0C5] cursor-pointer';
+        }
+      });
+
+      // Highlight inspected row border on 8x8 pixel grid
+      for (let i = 0; i < TOTAL_PIXELS; i++) {
+        const r = Math.floor(i / GRID_SIZE);
+        if (r === rowIdx) {
+          pixelEls[i].classList.add('ring-2', 'ring-amber-500/80', 'border-amber-600');
+          pixelEls[i].classList.remove('border-[#B5AFA2]');
+        } else {
+          pixelEls[i].classList.remove('ring-2', 'ring-amber-500/80', 'border-amber-600');
+          pixelEls[i].classList.add('border-[#B5AFA2]');
+        }
+      }
+    }
+
+    function applyPagePreset(shadeArray) {
+      for (let i = 0; i < TOTAL_PIXELS; i++) {
+        state.targetShades[i] = shadeArray[i];
+        if (state.powerConnected) {
+          capsules[i].programWaveform(shadeArray[i], state.waveformMode, state.basePulseMs);
+        }
+      }
+    }
+
+    function updateMacroGridDOM() {
+      for (let i = 0; i < TOTAL_PIXELS; i++) {
+        const ref = state.pixelReflectance[i]; // 0.08..0.94
+        const r = Math.round(26 + ref * 218);
+        const g = Math.round(25 + ref * 216);
+        const b = Math.round(24 + ref * 210);
+        pixelEls[i].style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+      }
+    }
+
+    function updateTelemetryUI(activeCount, instantPowerMw, viscosity, mobility, probeCap) {
+      const powerEl = document.getElementById('powerDrawDisplay');
+      const energyEl = document.getElementById('energyCounterDisplay');
+      const voltEl = document.getElementById('telemetryVoltage');
+      const viscEl = document.getElementById('telemetryViscosity');
+      const velEl = document.getElementById('telemetryVelocity');
+      const albEl = document.getElementById('telemetryAlbedo');
+      const statusEl = document.getElementById('statusBanner');
+
+      energyEl.textContent = `ENERGY: ${state.totalEnergyMWh.toFixed(3)} mWh`;
+      viscEl.textContent = `${viscosity.toFixed(1)} mPa·s`;
+
+      const probeRefPct = Math.round(((state.pixelReflectance[probeCap.pixelIndex] - 0.08) / 0.86) * 100);
+      albEl.textContent = `${Math.max(0, Math.min(100, probeRefPct))}% White`;
+
+      if (!state.powerConnected) {
+        powerEl.textContent = 'POWER CUT: 0.00 mW';
+        powerEl.className = 'text-amber-400 font-semibold';
+        voltEl.textContent = '0.0 V (Cut)';
+        velEl.textContent = '0.00 mm/s';
+        statusEl.textContent = '⚡ Zero Power: Image remains locked via viscous drag (Bistability)!';
+        statusEl.className = 'font-semibold text-amber-800';
+      } else if (activeCount > 0) {
+        powerEl.textContent = `REFRESH: ${instantPowerMw.toFixed(2)} mW`;
+        powerEl.className = 'text-sky-400 font-semibold';
+        const pVolt = probeCap.currentVoltagePolarity === 1 ? '+15.0 V' : (probeCap.currentVoltagePolarity === -1 ? '-15.0 V' : '0.0 V');
+        voltEl.textContent = `${pVolt} (${probeCap.currentPhaseLabel.split(':')[0]})`;
+        velEl.textContent = `${(mobility * 0.85).toFixed(2)} mm/s`;
+
+        if (state.temperatureC < 0) {
+          statusEl.textContent = '❄️ Cold oil increases viscosity — Direct Pulses leave ghosting unless 3-Phase Waveform is used!';
+          statusEl.className = 'font-semibold text-sky-800';
+        } else if (state.waveformMode === 'antighost') {
+          statusEl.textContent = '✨ 3-Phase Anti-Ghosting Waveform: Black clear → White flush → Calibrated gray!';
+          statusEl.className = 'font-semibold text-indigo-800';
+        } else {
+          statusEl.textContent = '🔄 Applying Direct Electrophoretic Pulse to charged pigment capsules...';
+          statusEl.className = 'font-semibold text-blue-800';
+        }
+      } else {
+        powerEl.textContent = 'IDLE: 0.00 mW';
+        powerEl.className = 'text-emerald-400 font-semibold';
+        voltEl.textContent = '0.0 V (Hold)';
+        velEl.textContent = '0.00 mm/s';
+        statusEl.textContent = '✓ Bistable Hold: Viscous drag keeps pigments suspended at 0.00 mW.';
+        statusEl.className = 'font-semibold text-emerald-800';
+      }
+    }
+
+    // --- 8. WIRE UP CONTROLS, BRUSHES, WAVEFORMS & SCENARIOS ---
+    function setPowerState(on) {
+      state.powerConnected = on;
+      const btn = document.getElementById('btnTogglePower');
+      const badge = document.getElementById('batteryBadge');
+      if (on) {
+        btn.textContent = 'Power: ON';
+        btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition cursor-pointer';
+        badge.textContent = '🔋 BATTERY ON';
+        badge.className = 'font-mono-tech text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-300';
+      } else {
+        btn.textContent = 'Power: OFF (0V)';
+        btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 text-white hover:bg-amber-700 transition cursor-pointer';
+        badge.textContent = '🔌 UNPLUGGED (0W)';
+        badge.className = 'font-mono-tech text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 border border-amber-300';
+      }
+    }
+
+    function setWaveformMode(mode) {
+      state.waveformMode = mode;
+      const btnDirect = document.getElementById('btnWaveDirect');
+      const btnAnti = document.getElementById('btnWaveAntiGhost');
+      if (mode === 'direct') {
+        btnDirect.className = 'py-1.5 px-2 rounded-lg text-xs font-semibold bg-[#1A1A1A] text-[#F4F1EA] transition cursor-pointer';
+        btnAnti.className = 'py-1.5 px-2 rounded-lg text-xs font-semibold bg-[#EAE6DF] text-[#3D3A34] hover:bg-[#DFDBD2] border border-[#C8C2B6] transition cursor-pointer';
+      } else {
+        btnAnti.className = 'py-1.5 px-2 rounded-lg text-xs font-semibold bg-[#1A1A1A] text-[#F4F1EA] transition cursor-pointer';
+        btnDirect.className = 'py-1.5 px-2 rounded-lg text-xs font-semibold bg-[#EAE6DF] text-[#3D3A34] hover:bg-[#DFDBD2] border border-[#C8C2B6] transition cursor-pointer';
+      }
+    }
+
+    document.getElementById('btnTogglePower').addEventListener('click', () => setPowerState(!state.powerConnected));
+    document.getElementById('btnWaveDirect').addEventListener('click', () => setWaveformMode('direct'));
+    document.getElementById('btnWaveAntiGhost').addEventListener('click', () => setWaveformMode('antighost'));
+
+    // Paintbrush shade buttons
+    document.querySelectorAll('.brush-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.selectedBrushShade = parseInt(btn.dataset.shade, 10);
+        document.querySelectorAll('.brush-btn').forEach(b => {
+          b.classList.remove('ring-2', 'ring-amber-400', 'opacity-100');
+          b.classList.add('opacity-80');
+        });
+        btn.classList.add('ring-2', 'ring-amber-400', 'opacity-100');
+        btn.classList.remove('opacity-80');
+      });
+    });
+
+    // Temperature & Pulse Sliders
+    const tempSlider = document.getElementById('tempSlider');
+    const tempValue = document.getElementById('tempValue');
+    tempSlider.addEventListener('input', (e) => {
+      state.temperatureC = parseInt(e.target.value, 10);
+      tempValue.textContent = `${state.temperatureC > 0 ? '+' : ''}${state.temperatureC}°C`;
+    });
+
+    const pulseSlider = document.getElementById('pulseSlider');
+    const pulseValue = document.getElementById('pulseValue');
+    pulseSlider.addEventListener('input', (e) => {
+      state.basePulseMs = parseInt(e.target.value, 10);
+      pulseValue.textContent = `${state.basePulseMs} ms`;
+    });
+
+    // Preset & Invert Buttons
+    document.getElementById('btnPresetA').addEventListener('click', () => applyPagePreset(PRESETS.letterA));
+    document.getElementById('btnPresetHeart').addEventListener('click', () => applyPagePreset(PRESETS.heart));
+    document.getElementById('btnPresetGradient').addEventListener('click', () => applyPagePreset(PRESETS.gradient));
+    document.getElementById('btnPresetChecker').addEventListener('click', () => applyPagePreset(PRESETS.checker));
+    document.getElementById('btnPresetClear').addEventListener('click', () => applyPagePreset(PRESETS.clear));
+    document.getElementById('btnInvertAll').addEventListener('click', () => {
+      const inverted = state.targetShades.map(s => 3 - s);
+      applyPagePreset(inverted);
+    });
+
+    // Top Header "2-Minute Discovery" One-Click Scenarios
+    document.getElementById('btnScenarioBattery').addEventListener('click', () => {
+      setPowerState(false);
+    });
+
+    document.getElementById('btnScenarioFreeze').addEventListener('click', () => {
+      setPowerState(true);
+      setWaveformMode('direct');
+      state.temperatureC = -15;
+      tempSlider.value = -15;
+      tempValue.textContent = '-15°C';
+      state.basePulseMs = 420;
+      pulseSlider.value = 420;
+      pulseValue.textContent = '420 ms';
+      // Flip current image so user immediately sees sluggish particles & ghosting
+      const inverted = state.targetShades.map(s => 3 - s);
+      applyPagePreset(inverted);
+    });
+
+    document.getElementById('btnScenarioWaveform').addEventListener('click', () => {
+      setPowerState(true);
+      setWaveformMode('antighost');
+      if (state.temperatureC < 0) {
+        state.temperatureC = 22;
+        tempSlider.value = 22;
+        tempValue.textContent = '+22°C';
+      }
+      applyPagePreset(state.targetShades);
+    });
+
+    // Physics Explanation Modal Handlers
+    const physicsModal = document.getElementById('physicsModal');
+    document.getElementById('btnOpenPhysicsModal').addEventListener('click', () => {
+      physicsModal.classList.remove('hidden');
+      physicsModal.classList.add('flex');
+    });
+    document.getElementById('btnClosePhysicsModal').addEventListener('click', () => {
+      physicsModal.classList.add('hidden');
+      physicsModal.classList.remove('flex');
+    });
+    physicsModal.addEventListener('click', (e) => {
+      if (e.target === physicsModal) {
+        physicsModal.classList.add('hidden');
+        physicsModal.classList.remove('flex');
+      }
+    });
+
+    // --- 9. MAIN ANIMATION LOOP ---
+    let lastTime = null;
+    function animate(timestamp) {
+      if (!lastTime) lastTime = timestamp;
+      const dt = Math.min(0.05, (timestamp - lastTime) / 1000);
+      lastTime = timestamp;
+
+      stepSimulation(dt);
+      renderMicroscope();
+      renderOscilloscope();
+      requestAnimationFrame(animate);
+    }
+
+    window.onload = function () {
+      buildMacroGridDOM();
+      resizeCanvases();
+      applyPagePreset(PRESETS.letterA);
+      requestAnimationFrame(animate);
+    };
+  </script>
+</body>
+</html>
